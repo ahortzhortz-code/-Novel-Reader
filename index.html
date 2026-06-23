@@ -83,7 +83,23 @@
             </div>
 
             <div id="novelsGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 hidden">
-                <!-- Novel Cards will be injected here -->
+                <!-- Novel Series Cards will be injected here -->
+            </div>
+        </div>
+
+        <!-- View 1.5: Chapters List -->
+        <div id="chaptersView" class="hidden block">
+            <div class="flex items-center gap-4 mb-6 bg-cream-200 p-3 sm:p-4 border-2 border-retro-brown shadow-retro rounded-md">
+                <button id="backToMainBtn" class="flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2 bg-cream-100 border-2 border-retro-brown font-bold text-retro-brown hover:bg-retro-brown hover:text-cream-100 transition-colors shadow-[2px_2px_0_0_rgba(74,59,50,1)] active:translate-y-[2px] active:translate-x-[2px] active:shadow-none text-sm sm:text-base">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+                    <span class="hidden sm:inline">กลับชั้นหนังสือ</span>
+                    <span class="sm:hidden">กลับ</span>
+                </button>
+                <h2 id="seriesTitleDisplay" class="font-heading text-lg sm:text-xl font-bold truncate">ชื่อซีรีส์</h2>
+            </div>
+            
+            <div id="chaptersGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                <!-- Chapter Cards will be injected here -->
             </div>
         </div>
 
@@ -91,9 +107,9 @@
         <div id="readingView" class="hidden h-[80vh] flex flex-col">
             <div class="flex justify-between items-center mb-6 bg-cream-200 p-3 sm:p-4 border-2 border-retro-brown shadow-retro rounded-md">
                 <div class="flex items-center gap-2 sm:gap-4 flex-wrap">
-                    <button id="backBtn" class="flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2 bg-cream-100 border-2 border-retro-brown font-bold text-retro-brown hover:bg-retro-brown hover:text-cream-100 transition-colors shadow-[2px_2px_0_0_rgba(74,59,50,1)] active:translate-y-[2px] active:translate-x-[2px] active:shadow-none text-sm sm:text-base">
+                    <button id="backToChaptersBtn" class="flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2 bg-cream-100 border-2 border-retro-brown font-bold text-retro-brown hover:bg-retro-brown hover:text-cream-100 transition-colors shadow-[2px_2px_0_0_rgba(74,59,50,1)] active:translate-y-[2px] active:translate-x-[2px] active:shadow-none text-sm sm:text-base">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
-                        <span class="hidden sm:inline">กลับไปชั้นหนังสือ</span>
+                        <span class="hidden sm:inline">กลับไปรายการเล่ม</span>
                         <span class="sm:hidden">กลับ</span>
                     </button>
                 </div>
@@ -119,27 +135,32 @@
     </footer>
 
     <script>
+        // ข้อมูลจำลองเพื่อให้คุณเห็นตัวอย่างการจัดกลุ่มใน Preview ทันที
         const fallbackData = [
-            {
-                title: "ตามล่านะจ๊ะอิอิ",
-                link: "https://docs.google.com/document/d/1a3yMfD5wzmndecU6rxAJawJdgKiqCFqkM4AqTFLXLp4/edit?usp=sharing"
-            }
+            { series: "Cinderella", link: "https://docs.google.com/document/d/1a3yMfD5wzmndecU6rxAJawJdgKiqCFqkM4AqTFLXLp4/edit", title: "Cinderella Bloodhound 1" },
+            { series: "Cinderella", link: "https://docs.google.com/document/d/1a3yMfD5wzmndecU6rxAJawJdgKiqCFqkM4AqTFLXLp4/edit", title: "Cinderella hunting the lion 2" },
+            { series: "องค์ชายอัปลักษณ์", link: "https://docs.google.com/document/d/1a3yMfD5wzmndecU6rxAJawJdgKiqCFqkM4AqTFLXLp4/edit", title: "องค์ชายอัปลักษณ์ 1" }
         ];
 
-        // API URL
+        // API URL (ถ้าคุณ Deploy Apps Script ใหม่อาจจะต้องเปลี่ยนลิ้งค์นี้ หรือถ้าใช้ลิ้งค์เดิมก็ไม่ต้องเปลี่ยนครับ)
         const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzh3EXwWUyuAEedmZUTlaluYhBUmeRbNGPLfYxE-24BGs7LU1oLsORVxwDSnGMvmvZU/exec';
         
-        let novelsList = [];
+        let groupedNovels = {};
+        let currentSeries = '';
 
         // Elements
         const mainView = document.getElementById('mainView');
+        const chaptersView = document.getElementById('chaptersView');
         const readingView = document.getElementById('readingView');
         const novelsGrid = document.getElementById('novelsGrid');
+        const chaptersGrid = document.getElementById('chaptersGrid');
         const loadingState = document.getElementById('loadingState');
         const errorMessage = document.getElementById('errorMessage');
-        const backBtn = document.getElementById('backBtn');
+        const backToMainBtn = document.getElementById('backToMainBtn');
+        const backToChaptersBtn = document.getElementById('backToChaptersBtn');
         const docIframe = document.getElementById('docIframe');
         const readingTitle = document.getElementById('readingTitle');
+        const seriesTitleDisplay = document.getElementById('seriesTitleDisplay');
         const iframeLoading = document.getElementById('iframeLoading');
 
         async function fetchNovelsData() {
@@ -150,26 +171,51 @@
                 const data = await response.json();
                 
                 if (data && data.length > 0) {
-                    novelsList = data;
+                    processData(data);
                 } else {
                     throw new Error("No data found or sheet is empty");
                 }
             } catch (error) {
                 console.error('Error fetching data:', error);
-                novelsList = fallbackData;
+                processData(fallbackData); // โชว์ข้อมูลจำลองถ้าโหลดไม่ติด
                 errorMessage.classList.remove('hidden');
             } finally {
                 loadingState.classList.add('hidden');
                 novelsGrid.classList.remove('hidden');
-                renderNovels();
             }
         }
 
-        function renderNovels() {
+        function processData(data) {
+            groupedNovels = {};
+            data.forEach(item => {
+                // จัดการข้อมูล ดึงชื่อซีรีส์ และชื่อเล่ม
+                const seriesName = item.series || item.title; 
+                const chapterTitle = item.title || item.series || "ตอนที่ 1";
+                const link = item.link;
+
+                if (!seriesName) return;
+
+                // สร้างกลุ่มนิยายใหม่ถ้ายังไม่มี
+                if (!groupedNovels[seriesName]) {
+                    groupedNovels[seriesName] = [];
+                }
+                
+                if (link) {
+                    groupedNovels[seriesName].push({
+                        title: chapterTitle,
+                        link: link
+                    });
+                }
+            });
+            renderSeries();
+        }
+
+        // หน้าแรก: โชว์รายชื่อซีรีส์
+        function renderSeries() {
             novelsGrid.innerHTML = '';
 
-            novelsList.forEach((novel, index) => {
-                if (!novel.title || novel.title.trim() === '') return;
+            Object.keys(groupedNovels).forEach(seriesName => {
+                const chapters = groupedNovels[seriesName];
 
                 const card = document.createElement('div');
                 card.className = "bg-cream-100 border-2 border-retro-brown rounded-lg p-5 shadow-retro hover:shadow-retro-hover hover:translate-y-1 hover:translate-x-1 transition-all cursor-pointer flex flex-col h-full";
@@ -179,23 +225,49 @@
                         <div class="w-12 h-12 bg-cream-200 border-2 border-retro-brown rounded-full flex items-center justify-center mb-4 shadow-[2px_2px_0_0_rgba(74,59,50,1)]">
                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-retro-brown"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
                         </div>
-                        <h3 class="font-heading font-bold text-xl mb-2 line-clamp-2">${novel.title}</h3>
+                        <h3 class="font-heading font-bold text-xl mb-2 line-clamp-2">${seriesName}</h3>
+                        <p class="text-sm font-bold opacity-80 text-retro-red">มี ${chapters.length} เล่ม/ตอน</p>
                     </div>
-                    <button class="mt-4 w-full py-2 bg-retro-brown text-cream-100 font-bold rounded border-2 border-retro-brown hover:bg-cream-100 hover:text-retro-brown transition-colors">
-                        เปิดอ่าน
-                    </button>
                 `;
 
-                card.addEventListener('click', () => openReadingMode(novel));
+                card.addEventListener('click', () => openChaptersView(seriesName));
                 novelsGrid.appendChild(card);
             });
         }
 
-        function openReadingMode(novel) {
-            readingTitle.textContent = novel.title;
+        // หน้าสอง: โชว์รายชื่อเล่มเมื่อกดเข้ามาในซีรีส์
+        function openChaptersView(seriesName) {
+            currentSeries = seriesName;
+            seriesTitleDisplay.textContent = seriesName;
+            chaptersGrid.innerHTML = '';
+
+            const chapters = groupedNovels[seriesName];
+
+            chapters.forEach(chapter => {
+                const card = document.createElement('div');
+                card.className = "bg-cream-200 border-2 border-retro-brown rounded-lg p-4 shadow-[2px_2px_0_0_rgba(74,59,50,1)] hover:shadow-none hover:translate-y-[2px] hover:translate-x-[2px] transition-all cursor-pointer flex flex-col h-full justify-between";
+                
+                card.innerHTML = `
+                    <h4 class="font-bold text-base mb-3 line-clamp-2 text-retro-brown">${chapter.title}</h4>
+                    <button class="w-full py-1.5 bg-retro-brown text-cream-100 text-sm font-bold rounded border-2 border-retro-brown hover:bg-cream-100 hover:text-retro-brown transition-colors">
+                        เปิดอ่าน
+                    </button>
+                `;
+
+                card.addEventListener('click', () => openReadingMode(chapter));
+                chaptersGrid.appendChild(card);
+            });
+
+            mainView.classList.add('hidden');
+            chaptersView.classList.remove('hidden');
+        }
+
+        // หน้าสาม: โหมดอ่านนิยาย
+        function openReadingMode(chapter) {
+            readingTitle.textContent = chapter.title;
             
-            // แปลงลิงก์สำหรับใส่ใน Iframe (ยังคงพยายามพรีวิวตามปกติ)
-            let embedUrl = novel.link;
+            // แปลงลิงก์สำหรับใส่ใน Iframe
+            let embedUrl = chapter.link;
             if (embedUrl.includes('/edit')) {
                 embedUrl = embedUrl.replace(/\/edit.*?$/, '/preview');
             } else if (embedUrl.includes('/view')) {
@@ -205,16 +277,21 @@
             iframeLoading.style.display = 'flex';
             docIframe.src = embedUrl;
 
-            mainView.classList.add('hidden');
+            chaptersView.classList.add('hidden');
             readingView.classList.remove('hidden');
         }
 
-        // --- Event Listeners ---
+        // --- Event Listeners ควบคุมปุ่มต่างๆ ---
 
-        backBtn.addEventListener('click', () => {
+        backToMainBtn.addEventListener('click', () => {
+            chaptersView.classList.add('hidden');
+            mainView.classList.remove('hidden');
+        });
+
+        backToChaptersBtn.addEventListener('click', () => {
             docIframe.src = 'about:blank'; 
             readingView.classList.add('hidden');
-            mainView.classList.remove('hidden');
+            chaptersView.classList.remove('hidden');
         });
 
         docIframe.addEventListener('load', () => {

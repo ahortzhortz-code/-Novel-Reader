@@ -341,7 +341,7 @@
             seriesTitleDisplay.textContent = seriesName;
             chaptersGrid.innerHTML = '';
 
-            const chapters = groupedNovels[seriesName];
+            const chapters = groupedNovels[seriesName].chapters;
 
             chapters.forEach(chapter => {
                 const card = document.createElement('div');
@@ -404,6 +404,7 @@
             }, 500);
         });
 
+        // เริ่มโหลดข้อมูลเมื่อโหลดหน้าเสร็จ
         window.addEventListener('DOMContentLoaded', fetchNovelsData);
 
     </script>

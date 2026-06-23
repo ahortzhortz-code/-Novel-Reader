@@ -82,6 +82,22 @@
                 <p class="text-sm">ระบบกำลังแสดงผลจาก "ข้อมูลสำรอง" แทน</p>
             </div>
 
+            <!-- Filter Section -->
+            <div id="filterSection" class="hidden mb-6 bg-cream-200 p-3 sm:p-4 border-2 border-retro-brown shadow-retro rounded-md flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                <div class="font-bold text-lg flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                    ค้นหา:
+                </div>
+                <div class="flex-grow flex flex-wrap gap-3 w-full sm:w-auto">
+                    <select id="typeFilter" class="flex-1 min-w-[120px] p-2 border-2 border-retro-brown bg-white rounded-md outline-none focus:ring-2 focus:ring-retro-red font-bold text-retro-brown cursor-pointer">
+                        <option value="all">ทุกประเภท</option>
+                    </select>
+                    <select id="categoryFilter" class="flex-1 min-w-[120px] p-2 border-2 border-retro-brown bg-white rounded-md outline-none focus:ring-2 focus:ring-retro-red font-bold text-retro-brown cursor-pointer">
+                        <option value="all">ทุกหมวดหมู่</option>
+                    </select>
+                </div>
+            </div>
+
             <div id="novelsGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 hidden">
                 <!-- Novel Series Cards will be injected here -->
             </div>
@@ -137,9 +153,9 @@
     <script>
         // ข้อมูลจำลองเพื่อให้คุณเห็นตัวอย่างการจัดกลุ่มใน Preview ทันที
         const fallbackData = [
-            { series: "Cinderella", link: "https://docs.google.com/document/d/1a3yMfD5wzmndecU6rxAJawJdgKiqCFqkM4AqTFLXLp4/edit", title: "Cinderella Bloodhound 1" },
-            { series: "Cinderella", link: "https://docs.google.com/document/d/1a3yMfD5wzmndecU6rxAJawJdgKiqCFqkM4AqTFLXLp4/edit", title: "Cinderella hunting the lion 2" },
-            { series: "องค์ชายอัปลักษณ์", link: "https://docs.google.com/document/d/1a3yMfD5wzmndecU6rxAJawJdgKiqCFqkM4AqTFLXLp4/edit", title: "องค์ชายอัปลักษณ์ 1" }
+            { series: "Cinderella", link: "https://docs.google.com/document/d/1a3yMfD5wzmndecU6rxAJawJdgKiqCFqkM4AqTFLXLp4/edit", title: "Cinderella Bloodhound 1", type: "นิยาย", category: "ชายหญิง, โรแมนติก, สืบสวน" },
+            { series: "Cinderella", link: "https://docs.google.com/document/d/1a3yMfD5wzmndecU6rxAJawJdgKiqCFqkM4AqTFLXLp4/edit", title: "Cinderella hunting the lion 2", type: "นิยาย", category: "ชายหญิง, โรแมนติก, สืบสวน" },
+            { series: "องค์ชายอัปลักษณ์", link: "https://docs.google.com/document/d/1a3yMfD5wzmndecU6rxAJawJdgKiqCFqkM4AqTFLXLp4/edit", title: "องค์ชายอัปลักษณ์ 1", type: "มังงะ", category: "ชายชาย, โรแมนติก, ย้อนยุค, เทพเซียน" }
         ];
 
         // API URL (ถ้าคุณ Deploy Apps Script ใหม่อาจจะต้องเปลี่ยนลิ้งค์นี้ หรือถ้าใช้ลิ้งค์เดิมก็ไม่ต้องเปลี่ยนครับ)
@@ -147,6 +163,8 @@
         
         let groupedNovels = {};
         let currentSeries = '';
+        let allTypes = new Set();
+        let allCategories = new Set();
 
         // Elements
         const mainView = document.getElementById('mainView');
@@ -162,6 +180,9 @@
         const readingTitle = document.getElementById('readingTitle');
         const seriesTitleDisplay = document.getElementById('seriesTitleDisplay');
         const iframeLoading = document.getElementById('iframeLoading');
+        const filterSection = document.getElementById('filterSection');
+        const typeFilter = document.getElementById('typeFilter');
+        const categoryFilter = document.getElementById('categoryFilter');
 
         async function fetchNovelsData() {
             try {
@@ -181,58 +202,137 @@
                 errorMessage.classList.remove('hidden');
             } finally {
                 loadingState.classList.add('hidden');
+                filterSection.classList.remove('hidden');
                 novelsGrid.classList.remove('hidden');
             }
         }
 
         function processData(data) {
             groupedNovels = {};
+            allTypes.clear();
+            allCategories.clear();
+
             data.forEach(item => {
                 // จัดการข้อมูล ดึงชื่อซีรีส์ และชื่อเล่ม
                 const seriesName = item.series || item.title; 
                 const chapterTitle = item.title || item.series || "ตอนที่ 1";
                 const link = item.link;
+                const type = item.type ? item.type.trim() : "ไม่ระบุ";
+                const categoryStr = item.category ? item.category : "";
 
                 if (!seriesName) return;
 
-                // สร้างกลุ่มนิยายใหม่ถ้ายังไม่มี
+                // สร้างกลุ่มนิยายใหม่ถ้ายังไม่มี พร้อมเก็บ metadata
                 if (!groupedNovels[seriesName]) {
-                    groupedNovels[seriesName] = [];
+                    groupedNovels[seriesName] = {
+                        chapters: [],
+                        type: type,
+                        categories: new Set()
+                    };
                 }
                 
+                // เก็บหมวดหมู่แบบแยกคำ (Split ด้วย comma)
+                if (categoryStr) {
+                    const cats = categoryStr.split(',').map(c => c.trim()).filter(c => c);
+                    cats.forEach(c => {
+                        groupedNovels[seriesName].categories.add(c);
+                        allCategories.add(c); // เก็บลง set รวมเพื่อไปทำ dropdown
+                    });
+                }
+
+                if (type !== "ไม่ระบุ" && type !== "") {
+                    allTypes.add(type);
+                }
+
                 if (link) {
-                    groupedNovels[seriesName].push({
+                    groupedNovels[seriesName].chapters.push({
                         title: chapterTitle,
                         link: link
                     });
                 }
             });
+            
+            populateFilters();
             renderSeries();
         }
 
-        // หน้าแรก: โชว์รายชื่อซีรีส์
+        function populateFilters() {
+            // ล้างค่าเก่า ยกเว้น option แรก
+            typeFilter.innerHTML = '<option value="all">ทุกประเภท</option>';
+            categoryFilter.innerHTML = '<option value="all">ทุกหมวดหมู่</option>';
+
+            Array.from(allTypes).sort().forEach(type => {
+                const opt = document.createElement('option');
+                opt.value = type;
+                opt.textContent = type;
+                typeFilter.appendChild(opt);
+            });
+
+            Array.from(allCategories).sort().forEach(cat => {
+                const opt = document.createElement('option');
+                opt.value = cat;
+                opt.textContent = cat;
+                categoryFilter.appendChild(opt);
+            });
+        }
+
+        // หน้าแรก: โชว์รายชื่อซีรีส์ พร้อมกรองข้อมูล
         function renderSeries() {
             novelsGrid.innerHTML = '';
+            
+            const selectedType = typeFilter.value;
+            const selectedCat = categoryFilter.value;
+            let count = 0;
 
             Object.keys(groupedNovels).forEach(seriesName => {
-                const chapters = groupedNovels[seriesName];
+                const seriesData = groupedNovels[seriesName];
+                const chapters = seriesData.chapters;
+
+                // กรองข้อมูล
+                const matchType = (selectedType === 'all') || (seriesData.type === selectedType);
+                const matchCat = (selectedCat === 'all') || (seriesData.categories.has(selectedCat));
+
+                if (!matchType || !matchCat) return; // ข้ามถ้าไม่ตรงเงื่อนไข
+                
+                count++;
+                
+                // สร้าง tag หมวดหมู่
+                const catBadges = Array.from(seriesData.categories).map(cat => 
+                    `<span class="inline-block bg-white border border-retro-brown text-xs px-2 py-0.5 rounded-full whitespace-nowrap mb-1 mr-1">${cat}</span>`
+                ).join('');
+
+                const typeBadge = seriesData.type !== "ไม่ระบุ" ? 
+                    `<div class="absolute top-[-12px] right-[-12px] bg-retro-red text-cream-100 font-bold text-xs px-3 py-1 rounded border-2 border-retro-brown shadow-[2px_2px_0_0_rgba(74,59,50,1)] rotate-3 z-10">${seriesData.type}</div>` : '';
 
                 const card = document.createElement('div');
-                card.className = "bg-cream-100 border-2 border-retro-brown rounded-lg p-5 shadow-retro hover:shadow-retro-hover hover:translate-y-1 hover:translate-x-1 transition-all cursor-pointer flex flex-col h-full";
+                card.className = "bg-cream-100 border-2 border-retro-brown rounded-lg p-5 shadow-retro hover:shadow-retro-hover hover:translate-y-1 hover:translate-x-1 transition-all cursor-pointer flex flex-col h-full relative mt-2 mr-2";
                 
                 card.innerHTML = `
+                    ${typeBadge}
                     <div class="flex-grow">
-                        <div class="w-12 h-12 bg-cream-200 border-2 border-retro-brown rounded-full flex items-center justify-center mb-4 shadow-[2px_2px_0_0_rgba(74,59,50,1)]">
+                        <div class="w-12 h-12 bg-cream-200 border-2 border-retro-brown rounded-full flex items-center justify-center mb-3 shadow-[2px_2px_0_0_rgba(74,59,50,1)]">
                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-retro-brown"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
                         </div>
-                        <h3 class="font-heading font-bold text-xl mb-2 line-clamp-2">${seriesName}</h3>
-                        <p class="text-sm font-bold opacity-80 text-retro-red">มี ${chapters.length} เล่ม/ตอน</p>
+                        <h3 class="font-heading font-bold text-xl mb-1 line-clamp-2">${seriesName}</h3>
+                        <p class="text-sm font-bold opacity-80 text-retro-red mb-3">มี ${chapters.length} เล่ม/ตอน</p>
+                        <div class="flex flex-wrap mt-2">
+                            ${catBadges}
+                        </div>
                     </div>
                 `;
 
                 card.addEventListener('click', () => openChaptersView(seriesName));
                 novelsGrid.appendChild(card);
             });
+            
+            if (count === 0) {
+                novelsGrid.innerHTML = `
+                    <div class="col-span-full py-12 text-center border-2 border-dashed border-retro-brown rounded-lg bg-cream-200">
+                        <p class="font-bold text-lg text-retro-brown">อ๊ะ! ไม่พบเรื่องที่ตรงกับเงื่อนไข</p>
+                        <p class="text-sm">ลองเปลี่ยนหมวดหมู่หรือประเภทดูนะ</p>
+                    </div>
+                `;
+            }
         }
 
         // หน้าสอง: โชว์รายชื่อเล่มเมื่อกดเข้ามาในซีรีส์
@@ -293,6 +393,10 @@
             readingView.classList.add('hidden');
             chaptersView.classList.remove('hidden');
         });
+        
+        // กรองข้อมูลเมื่อเปลี่ยนตัวเลือก
+        typeFilter.addEventListener('change', renderSeries);
+        categoryFilter.addEventListener('change', renderSeries);
 
         docIframe.addEventListener('load', () => {
             setTimeout(() => {

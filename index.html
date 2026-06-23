@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retro Novel Reader</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Pridi:wght@400;600;700&family=Sarabun:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'retro-bg': '#FAF6E9',
+                        'cream-100': '#FDFBF7',
+                        'cream-200': '#F4EAD5',
+                        'retro-brown': '#4A3B32',
+                        'retro-red': '#D9534F',
+                    },
+                    fontFamily: {
+                        'heading': ['Pridi', 'serif'],
+                        'body': ['Sarabun', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        'retro': '4px 4px 0px 0px rgba(74, 59, 50, 1)',
+                        'retro-hover': '2px 2px 0px 0px rgba(74, 59, 50, 1)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #FAF6E9;
+            background-image: radial-gradient(#E5DCC5 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        /* Custom Scrollbar for a neat look */
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #F4EAD5; 
+            border-left: 2px solid #4A3B32;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #4A3B32; 
+        }
+    </style>
+</head>
+<body class="font-body text-retro-brown antialiased min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-cream-100 border-b-4 border-retro-brown shadow-retro sticky top-0 z-10">
+        <div class="max-w-5xl mx-auto px-4 py-4 flex justify-between items-center">
+            <h1 class="font-heading font-bold text-2xl tracking-wide flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-retro-red"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+                คลังนิยายจุ๊ๆ
+            </h1>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow max-w-5xl mx-auto px-4 py-8 w-full">
+        
+        <!-- View 1: Bookshelf (Main Page) -->
+        <div id="mainView" class="block">
+            <h2 class="font-heading text-xl font-bold mb-6 border-b-2 border-retro-brown pb-2 inline-block">📚 ชั้นหนังสือนิยาย</h2>
+            
+            <!-- Loading Indicator -->
+            <div id="loadingState" class="flex flex-col items-center justify-center py-12">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-4 border-retro-brown mb-4"></div>
+                <p class="font-bold text-lg">กำลังดึงข้อมูลจาก Google Sheets...</p>
+            </div>
+
+            <!-- Error/Fallback Message -->
+            <div id="errorMessage" class="hidden mb-6 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 shadow-retro" role="alert">
+                <p class="font-bold">เชื่อมต่อ Google Sheets ไม่สำเร็จ!</p>
+                <p class="text-sm">ระบบกำลังแสดงผลจาก "ข้อมูลสำรอง" แทน</p>
+            </div>
+
+            <div id="novelsGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 hidden">
+                <!-- Novel Cards will be injected here -->
+            </div>
+        </div>
+
+        <!-- View 2: Reading Mode -->
+        <div id="readingView" class="hidden h-[80vh] flex flex-col">
+            <div class="flex justify-between items-center mb-6 bg-cream-200 p-3 sm:p-4 border-2 border-retro-brown shadow-retro rounded-md">
+                <div class="flex items-center gap-2 sm:gap-4 flex-wrap">
+                    <button id="backBtn" class="flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2 bg-cream-100 border-2 border-retro-brown font-bold text-retro-brown hover:bg-retro-brown hover:text-cream-100 transition-colors shadow-[2px_2px_0_0_rgba(74,59,50,1)] active:translate-y-[2px] active:translate-x-[2px] active:shadow-none text-sm sm:text-base">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+                        <span class="hidden sm:inline">กลับไปชั้นหนังสือ</span>
+                        <span class="sm:hidden">กลับ</span>
+                    </button>
+                </div>
+                <h2 id="readingTitle" class="font-heading text-base sm:text-xl font-bold truncate max-w-[30%] sm:max-w-[40%] text-right">ชื่อนิยาย</h2>
+            </div>
+
+            <!-- Iframe Container for Google Docs/Drive -->
+            <div class="iframe-container flex-grow border-4 border-retro-brown shadow-retro bg-white rounded-lg overflow-hidden relative">
+                <!-- Loading state for iframe -->
+                <div id="iframeLoading" class="absolute inset-0 bg-cream-100 flex flex-col items-center justify-center z-10">
+                    <div class="animate-spin rounded-full h-10 w-10 border-b-4 border-retro-brown mb-3"></div>
+                    <p class="font-bold">กำลังเปิดหน้ากระดาษ...</p>
+                </div>
+                <iframe id="docIframe" class="w-full h-full border-none" src="about:blank" title="Novel Reader"></iframe>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-retro-brown text-cream-100 py-4 text-center border-t-4 border-black mt-auto">
+        <p class="font-heading text-sm">&copy; 2024 Retro Novel Reader</p>
+    </footer>
+
+    <script>
+        const fallbackData = [
+            {
+                title: "ตามล่านะจ๊ะอิอิ",
+                link: "https://docs.google.com/document/d/1a3yMfD5wzmndecU6rxAJawJdgKiqCFqkM4AqTFLXLp4/edit?usp=sharing"
+            }
+        ];
+
+        // API URL
+        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzh3EXwWUyuAEedmZUTlaluYhBUmeRbNGPLfYxE-24BGs7LU1oLsORVxwDSnGMvmvZU/exec';
+        
+        let novelsList = [];
+
+        // Elements
+        const mainView = document.getElementById('mainView');
+        const readingView = document.getElementById('readingView');
+        const novelsGrid = document.getElementById('novelsGrid');
+        const loadingState = document.getElementById('loadingState');
+        const errorMessage = document.getElementById('errorMessage');
+        const backBtn = document.getElementById('backBtn');
+        const docIframe = document.getElementById('docIframe');
+        const readingTitle = document.getElementById('readingTitle');
+        const iframeLoading = document.getElementById('iframeLoading');
+
+        async function fetchNovelsData() {
+            try {
+                const response = await fetch(APPS_SCRIPT_URL);
+                if (!response.ok) throw new Error('Network response was not ok');
+                
+                const data = await response.json();
+                
+                if (data && data.length > 0) {
+                    novelsList = data;
+                } else {
+                    throw new Error("No data found or sheet is empty");
+                }
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                novelsList = fallbackData;
+                errorMessage.classList.remove('hidden');
+            } finally {
+                loadingState.classList.add('hidden');
+                novelsGrid.classList.remove('hidden');
+                renderNovels();
+            }
+        }
+
+        function renderNovels() {
+            novelsGrid.innerHTML = '';
+
+            novelsList.forEach((novel, index) => {
+                if (!novel.title || novel.title.trim() === '') return;
+
+                const card = document.createElement('div');
+                card.className = "bg-cream-100 border-2 border-retro-brown rounded-lg p-5 shadow-retro hover:shadow-retro-hover hover:translate-y-1 hover:translate-x-1 transition-all cursor-pointer flex flex-col h-full";
+                
+                card.innerHTML = `
+                    <div class="flex-grow">
+                        <div class="w-12 h-12 bg-cream-200 border-2 border-retro-brown rounded-full flex items-center justify-center mb-4 shadow-[2px_2px_0_0_rgba(74,59,50,1)]">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-retro-brown"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+                        </div>
+                        <h3 class="font-heading font-bold text-xl mb-2 line-clamp-2">${novel.title}</h3>
+                    </div>
+                    <button class="mt-4 w-full py-2 bg-retro-brown text-cream-100 font-bold rounded border-2 border-retro-brown hover:bg-cream-100 hover:text-retro-brown transition-colors">
+                        เปิดอ่าน
+                    </button>
+                `;
+
+                card.addEventListener('click', () => openReadingMode(novel));
+                novelsGrid.appendChild(card);
+            });
+        }
+
+        function openReadingMode(novel) {
+            readingTitle.textContent = novel.title;
+            
+            // แปลงลิงก์สำหรับใส่ใน Iframe (ยังคงพยายามพรีวิวตามปกติ)
+            let embedUrl = novel.link;
+            if (embedUrl.includes('/edit')) {
+                embedUrl = embedUrl.replace(/\/edit.*?$/, '/preview');
+            } else if (embedUrl.includes('/view')) {
+                embedUrl = embedUrl.replace(/\/view.*?$/, '/preview');
+            }
+
+            iframeLoading.style.display = 'flex';
+            docIframe.src = embedUrl;
+
+            mainView.classList.add('hidden');
+            readingView.classList.remove('hidden');
+        }
+
+        // --- Event Listeners ---
+
+        backBtn.addEventListener('click', () => {
+            docIframe.src = 'about:blank'; 
+            readingView.classList.add('hidden');
+            mainView.classList.remove('hidden');
+        });
+
+        docIframe.addEventListener('load', () => {
+            setTimeout(() => {
+                iframeLoading.style.display = 'none';
+            }, 500);
+        });
+
+        window.addEventListener('DOMContentLoaded', fetchNovelsData);
+
+    </script>
+</body>
+</html>
